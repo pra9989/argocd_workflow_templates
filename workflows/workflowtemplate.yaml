@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: hello-workflow
+  namespace: argo
+
+spec:
+  entrypoint: hello
+
+  templates:
+
+    - name: hello
+
+      container:
+        image: alpine:3.20
+
+        command:
+          - sh
+          - -c
+
+        args:
+          - |
+            echo "===================================="
+            echo "Hello from Argo Workflows"
+            echo "Deployed by Argo CD"
+            echo "Running on GKE Cluster-2"
+            echo "===================================="
