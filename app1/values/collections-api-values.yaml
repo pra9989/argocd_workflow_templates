@@ -1,0 +1,64 @@
+fullnameOverride: collections-api
+replicaCount: 1
+
+image:
+  repository: "610156625646.dkr.ecr.ap-south-1.amazonaws.com/highradius-poc/fintech-api"
+  tag: v2
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: regcred
+
+container:
+  name: collections-api
+  port: 8080
+
+env:
+  EXECUTOR_URL: "http://executor-agent.cls-agent-8013.svc.cluster.local:80"
+  HR_ENV: gcp-poc8-lar
+  CLOUD_PROVIDER: GCP
+  DB_HOST: postgres.internal.company.com
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 8080
+  nodePort: 30082
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: shared-gateway
+      namespace: gateway-system
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /collections-api
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: collections-api
+          port: 80
+
+workflow:
+  enabled: false
