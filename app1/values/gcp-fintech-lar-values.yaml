@@ -1,0 +1,3 @@
+env:
+  HR_ENV: gcp-fintech-lar
+  CLOUD_PROVIDER: GCP
