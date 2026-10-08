@@ -1,0 +1,122 @@
+{{- if .Values.workflow.enabled }}
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workflow-runner
+  namespace: {{ .Release.Namespace }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workflow-runner-role
+  namespace: {{ .Release.Namespace }}
+
+rules:
+  # Required by Argo Workflows
+  - apiGroups:
+      - argoproj.io
+    resources:
+      - workflowtaskresults
+    verbs:
+      - create
+      - patch
+
+  # Required for checking Deployment
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Required for checking Service
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workflow-runner-binding
+  namespace: {{ .Release.Namespace }}
+
+subjects:
+  - kind: ServiceAccount
+    name: workflow-runner
+    namespace: {{ .Release.Namespace }}
+
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: workflow-runner-role
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: {{ include "k8s.fullname" . }}-workflow
+  namespace: {{ .Release.Namespace }}
+
+spec:
+  serviceAccountName: workflow-runner
+  entrypoint: validate-application
+
+  templates:
+
+    # Main workflow
+    - name: validate-application
+      steps:
+
+        - - name: check-deployment
+            template: check-deployment
+
+        - - name: check-service
+            template: check-service
+
+    # Step 1 - Wait for Deployment to become ready
+    - name: check-deployment
+      container:
+        image: bitnami/kubectl:latest
+        command:
+          - sh
+          - -c
+        args:
+          - |
+            set -e
+            echo "Checking Deployment: {{ include "k8s.fullname" . }}"
+
+            kubectl rollout status \
+              deployment/{{ include "k8s.fullname" . }} \
+              -n {{ .Release.Namespace }} \
+              --timeout=120s
+
+            echo "Deployment is READY"
+
+    # Step 2 - Verify Service exists
+    - name: check-service
+      container:
+        image: bitnami/kubectl:latest
+        command:
+          - sh
+          - -c
+        args:
+          - |
+            echo "Checking Service: {{ include "k8s.fullname" . }}"
+
+            kubectl get service \
+              {{ include "k8s.fullname" . }} \
+              -n {{ .Release.Namespace }}
+
+            echo "Service exists"
+
+{{- end }}
