@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+
+metadata:
+  name: fintech-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - list:
+        elements:
+
+          - appName: collections-ui
+            namespace: cls-ui
+            targetRevision: fintech-hir-helm
+            appValues: values/collections-ui-values.yaml
+            envValues: values/gcp-fintech-lar-values.yaml
+
+          - appName: collections-api
+            namespace: cls-api
+            targetRevision: fintech-hir-helm
+            appValues: values/collections-api-values.yaml
+            envValues: values/gcp-fintech-lar-values.yaml
+
+          - appName: executor-agent
+            namespace: cls-agent-8013
+            targetRevision: fintech-hir-helm
+            appValues: values/executor-agent-values.yaml
+            envValues: values/gcp-fintech-lar-values.yaml
+
+  template:
+    metadata:
+      name: '{{ .appName }}'
+      labels:
+        app.kubernetes.io/managed-by: argocd
+        product: fintech
+
+    spec:
+      project: default
+      source:
+        repoURL: https://git.trianz.com/hir-poc/hir-poc.git
+        targetRevision: '{{ .targetRevision }}'
+        path: helm/k8s
+        helm:
+          valueFiles:
+
+            - '../../{{ .appValues }}'
+
+            - '../../{{ .envValues }}'
+
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
