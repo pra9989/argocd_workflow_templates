@@ -1,0 +1,67 @@
+fullnameOverride: collections-ui
+replicaCount: 1
+
+image:
+  repository: "610156625646.dkr.ecr.ap-south-1.amazonaws.com/highradius-poc/fintech-ui"
+  tag: v2
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: regcred
+
+container:
+  name: collections-ui
+  port: 8080
+
+env:
+  CORE_URL: "http://collections-api.cls-api.svc.cluster.local:80"
+  EXECUTOR_URL: "http://executor-agent.cls-agent-8013.svc.cluster.local:80"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  nodePort: 30081
+
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+ingress:
+  enabled: true
+  className: gce
+  annotations:
+    kubernetes.io/ingress.class: "gce"
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: shared-gateway
+      namespace: gateway-system
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /collections-ui
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: collections-ui
+          port: 80
+
+workflow:
+  enabled: true 
